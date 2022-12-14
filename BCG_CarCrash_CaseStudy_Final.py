@@ -13,23 +13,24 @@ from pyspark.sql.window import Window
 
 # COMMAND ----------
 
+#FunctiontocreateDFfromCSVFiles
 def readcsvtoDF(path):
     return spark.read.option("header",True).csv(path)
 
+#FunctionToGroupByandCountDistinctCrash_ID
+def agg_crash_id_function(df):
+    display(df.select(col('Crash_ID')).agg(countDistinct(col('CRASH_ID')).alias("Count")))
+
 # COMMAND ----------
 
-charges_df=readcsvtoDF("/FileStore/tables/Charges_use.csv")
-charges_df.createOrReplaceTempView("Charges")
-Damages_df=readcsvtoDF("/FileStore/tables/Damages_use.csv")
-Damages_df.createOrReplaceTempView("Damages")
-Endorse_df=readcsvtoDF("/FileStore/tables/Endorse_use.csv")
-Endorse_df.createOrReplaceTempView("Endorse")
-Primary_Person_df=readcsvtoDF("/FileStore/tables/Primary_Person_use.csv")
-Primary_Person_df.createOrReplaceTempView("Primary_Person")
-Restrict_use_df=readcsvtoDF("/FileStore/tables/Restrict_use.csv")
-Restrict_use_df.createOrReplaceTempView("Restrict")
-Units_use_df=readcsvtoDF("/FileStore/tables/Units_use.csv")
-Units_use_df.createOrReplaceTempView("Units")
+# mntPoint Common input mount point for all source paths
+mntPoint="/FileStore/tables/"
+charges_df=readcsvtoDF(mntPoint+"Charges_use.csv")
+Damages_df=readcsvtoDF(mntPoint+"Damages_use.csv")
+Endorse_df=readcsvtoDF(mntPoint+"Endorse_use.csv")
+Primary_Person_df=readcsvtoDF(mntPoint+"Primary_Person_use.csv")
+Restrict_use_df=readcsvtoDF(mntPoint+"Restrict_use.csv")
+Units_use_df=readcsvtoDF(mntPoint+"Units_use.csv")
 
 # COMMAND ----------
 
@@ -38,7 +39,7 @@ Units_use_df.createOrReplaceTempView("Units")
 # COMMAND ----------
 
 # Gender = Male and Status=KILLED . counted those number of crashes as multiple person could get killed in same crash.
-Primary_Person_df.where("PRSN_GNDR_ID='MALE' and PRSN_INJRY_SEV_ID='KILLED'").select(col('Crash_ID')).agg(countDistinct(col('CRASH_ID')).alias("Count")).show()
+agg_crash_id_function(Primary_Person_df.where("PRSN_GNDR_ID='MALE' and PRSN_INJRY_SEV_ID='KILLED'"))
 
 # COMMAND ----------
 
@@ -47,7 +48,7 @@ Primary_Person_df.where("PRSN_GNDR_ID='MALE' and PRSN_INJRY_SEV_ID='KILLED'").se
 # COMMAND ----------
 
 # After Checking VEH_BODY_STYL_ID , Came to conclusion only option for two wheeler was MOTORCYCLE.
-Units_use_df.where("VEH_BODY_STYL_ID='MOTORCYCLE'").select(col('Crash_ID')).agg(countDistinct(col('CRASH_ID')).alias("Count")).show()
+agg_crash_id_function(Units_use_df.where("VEH_BODY_STYL_ID='MOTORCYCLE'"))
 
 # COMMAND ----------
 
@@ -71,7 +72,6 @@ Primary_Person_df\
 
 # found out Tot_injury_cnt where dealth_cnt is present or not equal to 0 . and putting a window function to find out top 5 to 15th
 Units_use_df1=Units_use_df\
-.select(col("VEH_MAKE_ID"),col("TOT_INJRY_CNT"),col("DEATH_CNT"))\
 .where("DEATH_CNT!=0")\
 .groupBy(col("VEH_MAKE_ID"))\
 .agg(sum(col("TOT_INJRY_CNT")).cast("Int").alias("TOT_INJRY_CNT"))\
